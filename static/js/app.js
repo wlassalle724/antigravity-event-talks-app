@@ -58,6 +58,7 @@ const elements = {
     mobileDrawerBody: document.getElementById('mobile-drawer-body'),
     
     // Global Elements
+    themeToggle: document.getElementById('theme-toggle'),
     toastContainer: document.getElementById('toast-container')
 };
 
@@ -66,6 +67,13 @@ const elements = {
    ========================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Check saved theme or system preference
+    const savedTheme = localStorage.getItem('theme');
+    const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+    if (savedTheme === 'light' || (!savedTheme && prefersLight)) {
+        document.body.classList.add('light-theme');
+    }
+
     // Set up radial progress ring init
     if (elements.charProgress) {
         elements.charProgress.style.strokeDasharray = `${PROGRESS_CIRCUMFERENCE} ${PROGRESS_CIRCUMFERENCE}`;
@@ -84,6 +92,15 @@ function setupEventListeners() {
     elements.refreshBtn.addEventListener('click', () => {
         fetchReleaseNotes(true);
     });
+
+    // Theme Toggle
+    if (elements.themeToggle) {
+        elements.themeToggle.addEventListener('click', () => {
+            const isLight = document.body.classList.toggle('light-theme');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            showToast(`Swapped to ${isLight ? 'Light' : 'Dark'} Mode! 🎨`, "success");
+        });
+    }
 
     // Search bar
     elements.searchInput.addEventListener('input', (e) => {

@@ -66,6 +66,137 @@
     --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ==========================================
+   Light Theme Override Variables
+   ========================================== */
+body.light-theme {
+    /* Color Palette */
+    --bg-app: #f1f5f9;
+    --bg-panel: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8fafc;
+    --bg-glass: rgba(255, 255, 255, 0.85);
+    --border-glass: rgba(0, 0, 0, 0.08);
+    --border-glass-hover: rgba(0, 0, 0, 0.16);
+    
+    /* Text Colors */
+    --text-title: #0f172a;
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    
+    /* Brand & Accent Colors */
+    --brand-blue: #2563eb;
+    --brand-cyan: #0891b2;
+    --brand-indigo: #4f46e5;
+    --brand-purple: #9333ea;
+    
+    /* Category Tags Design Tokens */
+    --color-feature: #059669;
+    --bg-feature: rgba(16, 185, 129, 0.12);
+    --border-feature: rgba(16, 185, 129, 0.3);
+    
+    --color-announcement: #2563eb;
+    --bg-announcement: rgba(59, 130, 246, 0.12);
+    --border-announcement: rgba(59, 130, 246, 0.3);
+    
+    --color-change: #d97706;
+    --bg-change: rgba(245, 158, 11, 0.12);
+    --border-change: rgba(245, 158, 11, 0.3);
+    
+    --color-issue: #ea580c;
+    --bg-issue: rgba(249, 115, 22, 0.12);
+    --border-issue: rgba(249, 115, 22, 0.3);
+    
+    --color-breaking: #dc2626;
+    --bg-breaking: rgba(239, 68, 68, 0.12);
+    --border-breaking: rgba(239, 68, 68, 0.3);
+    
+    --color-general: #7c3aed;
+    --bg-general: rgba(139, 92, 246, 0.12);
+    --border-general: rgba(139, 92, 246, 0.3);
+
+    /* Shadows */
+    --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
+    --shadow-glow-blue: 0 0 15px rgba(37, 99, 235, 0.1);
+    --shadow-glow-feature: 0 0 15px rgba(5, 150, 105, 0.08);
+}
+
+/* Light Theme Element Custom Adjustments */
+body.light-theme ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+}
+body.light-theme ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+body.light-theme .composer-body textarea {
+    background-color: rgba(0, 0, 0, 0.01);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+body.light-theme .composer-body textarea:focus {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+body.light-theme .clear-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+body.light-theme .detail-html-content code {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.08);
+    color: var(--brand-cyan);
+}
+body.light-theme .sync-status {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+/* Smooth transitions for theme swapping */
+body, .app-header, .panel-left, .panel-right, .filter-card, .detail-view-card, .x-composer-card, .preset-btn, .theme-toggle-btn {
+    transition: background-color var(--transition-normal), border-color var(--transition-normal), color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+/* Theme Toggle Button Component */
+.theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border-glass);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.theme-toggle-btn:hover {
+    color: var(--text-title);
+    border-color: var(--border-glass-hover);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+body.light-theme .theme-toggle-btn:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.theme-toggle-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Hide moon-icon by default (dark mode is active) */
+.theme-toggle-btn .sun-icon {
+    display: block;
+}
+.theme-toggle-btn .moon-icon {
+    display: none;
+}
+
+/* Swap icons when light theme is active */
+body.light-theme .theme-toggle-btn .sun-icon {
+    display: none;
+}
+body.light-theme .theme-toggle-btn .moon-icon {
+    display: block;
+}
+
 /* Base Reset & Styling */
 * {
     box-sizing: border-box;

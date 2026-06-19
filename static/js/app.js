@@ -12,7 +12,8 @@ const state = {
     searchQuery: '',
     sortOrder: 'newest',
     tweetPresetStyle: 'promo', // promo, casual, technical, minimal
-    isFetching: false
+    isFetching: false,
+    lastFetchedTimestamp: null
 };
 
 // Radial Progress Constants
@@ -82,6 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Attach Event Listeners
     setupEventListeners();
+    
+    // Set interval to update relative sync timestamp every 30 seconds
+    setInterval(updateRelativeTimestamp, 30000);
     
     // Fetch initial data
     fetchReleaseNotes();
@@ -176,12 +180,21 @@ function setupEventListeners() {
         navigator.clipboard.writeText(text)
             .then(() => {
                 showToast("Tweet draft copied to clipboard! 📋", "success");
+                triggerCopySuccessFeedback(elements.copyTweetBtn);
             })
             .catch(err => {
                 showToast("Could not copy draft automatically.", "error");
                 console.error("Clipboard error:", err);
             });
     });
+
+    // Smart Trim Button Action
+    const smartTrimBtn = document.getElementById('smart-trim-btn');
+    if (smartTrimBtn) {
+        smartTrimBtn.addEventListener('click', () => {
+            performSmartTrim(elements.tweetTextarea);
+        });
+    }
 
     // Share action: Open X Intent URL
     elements.tweetBtn.addEventListener('click', () => {
@@ -217,10 +230,10 @@ async function fetchReleaseNotes(force = false) {
         
         if (data.success) {
             state.allNotes = data.notes;
+            state.lastFetchedTimestamp = data.last_fetched;
             
-            // Format feed metadata time
-            const lastFetchedDate = new Date(data.last_fetched * 1000);
-            elements.lastUpdatedText.textContent = `Sync: ${lastFetchedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+            // Format feed metadata time relatively
+            updateRelativeTimestamp();
             
             // Calculate and show category counts
             updateCategoryCounts();
@@ -238,6 +251,36 @@ async function fetchReleaseNotes(force = false) {
         showToast("Failed to fetch Google Cloud release notes feed.", "error");
         console.error("Fetch release notes error:", err);
         elements.lastUpdatedText.textContent = "Sync offline";
+        
+        // Show Offline / Sync Failed UI in feed panel
+        elements.feedContainer.innerHTML = `
+            <div class="no-selection" style="padding: 3rem 1rem; margin: auto; text-align: center;">
+                <div class="empty-illustration" style="width: 4rem; height: 4rem; color: var(--color-breaking); margin: 0 auto 1rem auto; display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 3rem; height: 3rem;">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </div>
+                <h3 style="color: var(--text-title); font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">Sync Failed / Offline</h3>
+                <p style="font-size: 0.8rem; max-width: 280px; margin: 0 auto 1.25rem auto; color: var(--text-secondary); line-height: 1.4;">
+                    Unable to load the BigQuery release notes. Check your network connection or the server and try again.
+                </p>
+                <button id="retry-sync-btn" class="btn btn-secondary" style="padding: 0.45rem 1rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.5rem; margin: 0 auto; height: auto; cursor: pointer;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    </svg>
+                    Try Re-syncing
+                </button>
+            </div>
+        `;
+        
+        const retryBtn = elements.feedContainer.querySelector('#retry-sync-btn');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                fetchReleaseNotes(true);
+            });
+        }
     } finally {
         setLoadingState(false);
     }
@@ -323,16 +366,41 @@ function renderNotesFeed() {
     
     if (state.filteredNotes.length === 0) {
         elements.feedContainer.innerHTML = `
-            <div class="no-selection" style="padding: 3rem 1rem; margin: auto;">
-                <div class="empty-illustration" style="width: 4rem; height: 4rem;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="no-selection" style="padding: 3rem 1rem; margin: auto; text-align: center;">
+                <div class="empty-illustration" style="width: 4rem; height: 4rem; margin: 0 auto 1rem auto; display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 2.5rem; height: 2.5rem;">
                         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                     </svg>
                 </div>
-                <h3>No Matching Results</h3>
-                <p style="font-size: 0.8rem; max-width: 250px; margin: 0.5rem auto;">Try checking other categories or rephrasing your search keywords.</p>
+                <h3 style="color: var(--text-title); font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">No Matching Results</h3>
+                <p style="font-size: 0.8rem; max-width: 250px; margin: 0 auto 1.25rem auto; color: var(--text-secondary); line-height: 1.4;">
+                    Try checking other categories or rephrasing your search keywords.
+                </p>
+                <button id="reset-empty-filters-btn" class="btn-secondary-sm" style="margin: 0 auto; display: inline-flex; cursor: pointer;">
+                    Reset Search & Filters
+                </button>
             </div>
         `;
+        
+        const resetBtn = elements.feedContainer.querySelector('#reset-empty-filters-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                state.searchQuery = '';
+                state.currentCategory = 'all';
+                elements.searchInput.value = '';
+                elements.clearSearchBtn.style.display = 'none';
+                
+                document.querySelectorAll('.badge-btn').forEach(btn => {
+                    if (btn.dataset.category === 'all') {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+                
+                applyFilters();
+            });
+        }
         return;
     }
     
@@ -341,6 +409,7 @@ function renderNotesFeed() {
         card.className = `note-card ${state.selectedNote && state.selectedNote.id === note.id ? 'selected' : ''}`;
         card.dataset.id = note.id;
         card.dataset.type = note.type;
+        card.setAttribute('tabindex', '0'); // Keyboard focusability
         
         // Render small HTML clean excerpt
         let excerpt = note.text;
@@ -357,7 +426,7 @@ function renderNotesFeed() {
                     <span class="note-card-date">${note.date}</span>
                 </div>
                 <div class="note-card-actions">
-                    <button class="card-copy-btn" title="Copy update text to clipboard">
+                    <button class="card-copy-btn" title="Copy update text to clipboard" aria-label="Copy update text">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -381,6 +450,7 @@ function renderNotesFeed() {
                 navigator.clipboard.writeText(note.text)
                     .then(() => {
                         showToast("Copied update to clipboard! 📋", "success");
+                        triggerCopySuccessFeedback(copyBtn);
                     })
                     .catch(err => {
                         showToast("Could not copy update text.", "error");
@@ -389,8 +459,16 @@ function renderNotesFeed() {
             });
         }
         
+        // Selection handlers (Click & Keyboard)
         card.addEventListener('click', () => {
             selectNote(note);
+        });
+        
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectNote(note);
+            }
         });
         
         elements.feedContainer.appendChild(card);
@@ -519,6 +597,16 @@ function updateCharMeter() {
         }
     }
     
+    // Show/hide Smart Trim Button
+    const smartTrimBtn = document.getElementById('smart-trim-btn');
+    if (smartTrimBtn) {
+        if (length > limit) {
+            smartTrimBtn.style.display = 'inline-flex';
+        } else {
+            smartTrimBtn.style.display = 'none';
+        }
+    }
+    
     // Validate Tweet Share Action
     elements.tweetBtn.disabled = length > limit || length === 0;
 }
@@ -563,6 +651,7 @@ function wireClonedDrawerEvents() {
     const rewriteBtn = cloneRoot.querySelector('#suggest-rewrite-btn');
     const presets = cloneRoot.querySelector('#presets-drawer');
     const presetBtns = cloneRoot.querySelectorAll('.preset-btn');
+    const smartTrimBtnMobile = cloneRoot.querySelector('#smart-trim-btn');
     
     // Initialize mobile character progress circle stroke dash properties
     progress.style.strokeDasharray = `${PROGRESS_CIRCUMFERENCE} ${PROGRESS_CIRCUMFERENCE}`;
@@ -594,6 +683,16 @@ function wireClonedDrawerEvents() {
         
         const percentage = Math.min(len / 280, 1);
         progress.style.strokeDashoffset = PROGRESS_CIRCUMFERENCE - (percentage * PROGRESS_CIRCUMFERENCE);
+        
+        // Show/hide Smart Trim Button on Mobile
+        if (smartTrimBtnMobile) {
+            if (len > 280) {
+                smartTrimBtnMobile.style.display = 'inline-flex';
+            } else {
+                smartTrimBtnMobile.style.display = 'none';
+            }
+        }
+        
         postBtn.disabled = len > 280 || len === 0;
     }
     
@@ -635,8 +734,16 @@ function wireClonedDrawerEvents() {
         navigator.clipboard.writeText(text.value)
             .then(() => {
                 showToast("Tweet draft copied to clipboard! 📋", "success");
+                triggerCopySuccessFeedback(copyBtn);
             });
     });
+    
+    // Smart Trim Mobile Action
+    if (smartTrimBtnMobile) {
+        smartTrimBtnMobile.addEventListener('click', () => {
+            performSmartTrim(text);
+        });
+    }
     
     // Post Action inside mobile
     postBtn.addEventListener('click', () => {
@@ -747,4 +854,164 @@ function exportFilteredNotesToCSV() {
         showToast("Failed to export CSV.", "error");
         console.error("Export to CSV error:", err);
     }
+}
+
+/* ==========================================
+   UX Improvements Helper Utilities
+   ========================================== */
+
+function triggerCopySuccessFeedback(buttonElement) {
+    if (!buttonElement) return;
+    
+    const originalHtml = buttonElement.innerHTML;
+    buttonElement.classList.add('copy-success');
+    
+    const hasText = buttonElement.textContent.trim().length > 0;
+    
+    // Emerald green checkmark
+    const checkmarkSvg = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-feature)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 1.1em; height: 1.1em; display: inline-block; vertical-align: middle; transition: var(--transition-fast);">
+            <polyline points="20 6 9 17 4 12" />
+        </svg>
+    `;
+    
+    if (hasText) {
+        buttonElement.innerHTML = `${checkmarkSvg} <span>Copied!</span>`;
+    } else {
+        buttonElement.innerHTML = checkmarkSvg;
+    }
+    
+    setTimeout(() => {
+        buttonElement.classList.remove('copy-success');
+        buttonElement.innerHTML = originalHtml;
+    }, 1500);
+}
+
+function performSmartTrim(textarea) {
+    if (!textarea) return;
+    let text = textarea.value;
+    if (text.length <= 280) return;
+    
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urls = text.match(urlRegex);
+    
+    if (urls && urls.length > 0 && state.selectedNote) {
+        const overflow = text.length - 280;
+        regenerateDraftWithTighterLimit(overflow + 10);
+        showToast("Smart Trim applied! Preserved URLs and tags. ⚡", "success");
+        return;
+    }
+    
+    // Fallback: simple smart truncation at word boundary of the entire text to 277 + "..."
+    let trimmed = text.substring(0, 277).trim();
+    const lastSpace = trimmed.lastIndexOf(' ');
+    if (lastSpace > 200) {
+        trimmed = trimmed.substring(0, lastSpace);
+    }
+    textarea.value = trimmed + "...";
+    updateCharMeter();
+    showToast("Draft trimmed to fit X limit. ⚡", "success");
+}
+
+function regenerateDraftWithTighterLimit(extraTrim) {
+    if (!state.selectedNote) return;
+    
+    const note = state.selectedNote;
+    const link = note.link;
+    const date = note.date;
+    const desc = note.text;
+    
+    let header = "";
+    let tags = "";
+    
+    switch (state.tweetPresetStyle) {
+        case 'promo':
+            header = `🚀 New #BigQuery Update (${date}): `;
+            tags = `\n\nRead documentation:\n${link}\n#GoogleCloud #GCP #DataEngineering`;
+            break;
+        case 'casual':
+            header = `💡 Just saw this neat BigQuery release note! `;
+            tags = `\n\nDocs link: ${link}\n#BigQuery #Dataform`;
+            break;
+        case 'technical':
+            header = `🛠️ BigQuery (${note.type}) release detail: `;
+            tags = `\n\nOfficial specs: ${link}\n#SQL #CloudEngine`;
+            break;
+        case 'minimal':
+            header = `BQ Release (${note.type}): `;
+            tags = `\n\nLink: ${link}`;
+            break;
+    }
+    
+    const totalExtraLength = header.length + tags.length;
+    // Squeeze the description
+    const maxDescLength = Math.max(30, 280 - totalExtraLength - 5 - extraTrim);
+    
+    let trimmedDesc = desc;
+    if (desc.length > maxDescLength) {
+        trimmedDesc = desc.substring(0, maxDescLength).trim();
+        const lastSpace = trimmedDesc.lastIndexOf(' ');
+        if (lastSpace > maxDescLength * 0.75) {
+            trimmedDesc = trimmedDesc.substring(0, lastSpace);
+        }
+        trimmedDesc += "...";
+    }
+    
+    const finalTweet = `${header}${trimmedDesc}${tags}`;
+    elements.tweetTextarea.value = finalTweet;
+    updateCharMeter();
+    
+    // If mobile drawer is open, synchronize cloned textarea
+    const mobileTextarea = document.querySelector('#mobile-cloned-workspace #tweet-textarea');
+    if (mobileTextarea) {
+        mobileTextarea.value = finalTweet;
+        
+        // Trigger mobile character meter update
+        const progress = document.querySelector('#mobile-cloned-workspace #char-progress');
+        const counter = document.querySelector('#mobile-cloned-workspace #char-counter');
+        const postBtn = document.querySelector('#mobile-cloned-workspace #tweet-btn');
+        if (progress && counter && postBtn) {
+            const len = finalTweet.length;
+            counter.textContent = 280 - len;
+            counter.className = 'char-count-text';
+            if (len >= 240 && len < 280) {
+                counter.classList.add('warning');
+                progress.style.stroke = '#f59e0b';
+            } else if (len >= 280) {
+                counter.classList.add('exceeded');
+                progress.style.stroke = '#ef4444';
+            } else {
+                progress.style.stroke = '#3b82f6';
+            }
+            const percentage = Math.min(len / 280, 1);
+            progress.style.strokeDashoffset = PROGRESS_CIRCUMFERENCE - (percentage * PROGRESS_CIRCUMFERENCE);
+            postBtn.disabled = len > 280 || len === 0;
+            const smartTrimMobile = document.querySelector('#mobile-cloned-workspace #smart-trim-btn');
+            if (smartTrimMobile) {
+                smartTrimMobile.style.display = len > 280 ? 'inline-flex' : 'none';
+            }
+        }
+    }
+}
+
+function updateRelativeTimestamp() {
+    if (!state.lastFetchedTimestamp) return;
+    
+    const now = Math.floor(Date.now() / 1000);
+    const diff = Math.max(0, now - state.lastFetchedTimestamp);
+    
+    let timeStr = "";
+    if (diff < 5) {
+        timeStr = "Sync: Just now";
+    } else if (diff < 60) {
+        timeStr = `Sync: ${diff}s ago`;
+    } else if (diff < 3600) {
+        const mins = Math.floor(diff / 60);
+        timeStr = `Sync: ${mins}m ago`;
+    } else {
+        const hours = Math.floor(diff / 3600);
+        timeStr = `Sync: ${hours}h ago`;
+    }
+    
+    elements.lastUpdatedText.textContent = timeStr;
 }

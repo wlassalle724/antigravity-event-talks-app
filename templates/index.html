@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Pulse & Tweet Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#logo-grad-1)"/>
+                        <path d="M2 17L12 22L22 17M2 12L12 17L22 12" stroke="url(#logo-grad-2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="logo-grad-1" x1="2" y1="2" x2="22" y2="12" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#3b82f6"/>
+                                <stop offset="100%" stop-color="#06b6d4"/>
+                            </linearGradient>
+                            <linearGradient id="logo-grad-2" x1="2" y1="12" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#3b82f6"/>
+                                <stop offset="100%" stop-color="#a855f7"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>BQ Release <span class="accent-text">Pulse</span></h1>
+                    <p class="subtitle">Radar & X Tweet Hub</p>
+                </div>
+            </div>
+            
+            <div class="header-controls">
+                <div class="sync-status">
+                    <span class="status-indicator online"></span>
+                    <span id="last-updated-text" class="status-text">Loading feed...</span>
+                </div>
+                <button id="refresh-btn" class="btn btn-primary" title="Refresh Release Notes">
+                    <svg class="icon refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    </svg>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Layout -->
+        <main class="dashboard-main">
+            <!-- Left Panel: Feed & Filters -->
+            <section class="panel-left">
+                <div class="filter-card">
+                    <!-- Search Bar -->
+                    <div class="search-box">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Search features, fixes, datasets, SQL..." autocomplete="off">
+                        <button id="clear-search" class="clear-btn" style="display: none;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Category Quick Badges -->
+                    <div class="filter-categories-container">
+                        <label class="filter-label">Filter by type</label>
+                        <div class="filter-badges" id="category-badges">
+                            <button class="badge-btn active" data-category="all">
+                                <span class="badge-dot all"></span> All <span class="badge-count" id="count-all">0</span>
+                            </button>
+                            <button class="badge-btn" data-category="Feature">
+                                <span class="badge-dot feature"></span> Feature <span class="badge-count" id="count-feature">0</span>
+                            </button>
+                            <button class="badge-btn" data-category="Announcement">
+                                <span class="badge-dot announcement"></span> Announcement <span class="badge-count" id="count-announcement">0</span>
+                            </button>
+                            <button class="badge-btn" data-category="Change">
+                                <span class="badge-dot change"></span> Change <span class="badge-count" id="count-change">0</span>
+                            </button>
+                            <button class="badge-btn" data-category="Issue">
+                                <span class="badge-dot issue"></span> Issue <span class="badge-count" id="count-issue">0</span>
+                            </button>
+                            <button class="badge-btn" data-category="Breaking">
+                                <span class="badge-dot breaking"></span> Breaking <span class="badge-count" id="count-breaking">0</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Extra Filters Row -->
+                    <div class="filter-meta-row">
+                        <div class="feed-stats" id="feed-stats-text">Showing 0 of 0 updates</div>
+                        <div class="sort-control">
+                            <label for="sort-select">Sort:</label>
+                            <select id="sort-select">
+                                <option value="newest" selected>Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Release Feed List -->
+                <div class="feed-scroll-container" id="feed-container">
+                    <!-- Skeleton Screens on initial load -->
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                </div>
+            </section>
+
+            <!-- Right Panel: X Composer & Selected Detail -->
+            <section class="panel-right" id="detail-panel">
+                <div class="no-selection" id="empty-detail-state">
+                    <div class="empty-illustration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                            <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h2>No Update Selected</h2>
+                    <p>Select any release note on the left feed to read its full details, format a custom draft, and share it on X / Twitter.</p>
+                </div>
+
+                <!-- Selection Workspace -->
+                <div class="workspace-layout" id="active-workspace" style="display: none;">
+                    <!-- Detail View Card -->
+                    <div class="detail-view-card">
+                        <div class="detail-header">
+                            <span id="detail-type-badge" class="update-badge">Feature</span>
+                            <span id="detail-date" class="detail-date-text">June 17, 2026</span>
+                        </div>
+                        <h3 id="detail-title" class="detail-title-text">BigQuery Release</h3>
+                        
+                        <div id="detail-html-content" class="detail-html-content markdown-body">
+                            <!-- Populated dynamically -->
+                        </div>
+                        
+                        <div class="detail-footer">
+                            <a id="detail-doc-link" href="#" target="_blank" class="doc-link-btn">
+                                <span>Official BigQuery Release Notes</span>
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- X / Twitter Composer Card -->
+                    <div class="x-composer-card">
+                        <div class="composer-header">
+                            <div class="composer-profile">
+                                <div class="composer-avatar">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M18.244 2.25h3.308l-7.227 7.69 8.502 11.24H16.17l-5.214-6.817L4.99 21.142H1.68l7.73-8.235L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                    </svg>
+                                </div>
+                                <div class="profile-info">
+                                    <h4>Share Draft on X</h4>
+                                    <p class="profile-handle">@youraccount</p>
+                                </div>
+                            </div>
+                            <button id="suggest-rewrite-btn" class="btn-secondary-sm" title="Rephrase or Summarize">
+                                <svg class="icon sparkle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/>
+                                </svg>
+                                <span>Draft Presets</span>
+                            </button>
+                        </div>
+
+                        <!-- Draft Options Drawer (Hidden by default, toggled via Draft Presets) -->
+                        <div id="presets-drawer" class="presets-drawer" style="display: none;">
+                            <p class="drawer-title">Choose a Tweet Style:</p>
+                            <div class="preset-buttons">
+                                <button class="preset-btn active" data-preset="promo">🚀 Tech Promo</button>
+                                <button class="preset-btn" data-preset="casual">💡 Casual News</button>
+                                <button class="preset-btn" data-preset="technical">🛠️ Tech Deep Dive</button>
+                                <button class="preset-btn" data-preset="minimal">🔗 Minimalist</button>
+                            </div>
+                        </div>
+
+                        <div class="composer-body">
+                            <textarea id="tweet-textarea" rows="6" placeholder="What's happening in BigQuery? Customize your Tweet here..."></textarea>
+                        </div>
+
+                        <div class="composer-footer">
+                            <div class="composer-metrics">
+                                <!-- Character limit radial progress ring -->
+                                <div class="progress-ring-container">
+                                    <svg class="progress-ring" width="30" height="30">
+                                        <circle class="progress-ring__circle-bg" stroke="#1e293b" stroke-width="2" fill="transparent" r="12" cx="15" cy="15"/>
+                                        <circle id="char-progress" class="progress-ring__circle" stroke="#3b82f6" stroke-width="2" fill="transparent" r="12" cx="15" cy="15"/>
+                                    </svg>
+                                    <span id="char-counter" class="char-count-text">280</span>
+                                </div>
+                            </div>
+                            
+                            <div class="composer-actions">
+                                <button id="copy-tweet-btn" class="btn btn-secondary">
+                                    <svg class="icon copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                    </svg>
+                                    <span>Copy Draft</span>
+                                </button>
+                                <button id="tweet-btn" class="btn btn-tweet">
+                                    <svg viewBox="0 0 24 24" fill="currentColor" class="icon font-bold">
+                                        <path d="M18.244 2.25h3.308l-7.227 7.69 8.502 11.24H16.17l-5.214-6.817L4.99 21.142H1.68l7.73-8.235L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                                    </svg>
+                                    <span>Post to X</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Mobile Drawer for Tweet Workspace -->
+    <div id="mobile-detail-drawer" class="mobile-drawer">
+        <div class="drawer-overlay" id="drawer-overlay"></div>
+        <div class="drawer-content">
+            <div class="drawer-drag-bar"></div>
+            <div class="drawer-header-row">
+                <h3>Update & Share Center</h3>
+                <button id="close-drawer-btn" class="close-drawer-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="drawer-scroll-area" id="mobile-drawer-body">
+                <!-- Cloned content of active workspace lands here on mobile -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Toast Notification System -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

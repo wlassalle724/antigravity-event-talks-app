@@ -32,6 +32,7 @@ const elements = {
     feedContainer: document.getElementById('feed-container'),
     emptyDetailState: document.getElementById('empty-detail-state'),
     activeWorkspace: document.getElementById('active-workspace'),
+    exportCsvBtn: document.getElementById('export-csv-btn'),
     
     // Detail Workspace Selectors
     detailTypeBadge: document.getElementById('detail-type-badge'),
@@ -119,6 +120,13 @@ function setupEventListeners() {
         sortFilteredNotes();
         renderNotesFeed();
     });
+
+    // Export CSV
+    if (elements.exportCsvBtn) {
+        elements.exportCsvBtn.addEventListener('click', () => {
+            exportFilteredNotesToCSV();
+        });
+    }
 
     // Tweet text change listener for character meter
     elements.tweetTextarea.addEventListener('input', () => {
@@ -331,14 +339,38 @@ function renderNotesFeed() {
                     <span class="update-badge ${badgeClass}">${note.type}</span>
                     <span class="note-card-date">${note.date}</span>
                 </div>
-                <div class="share-action-indicator">
-                    <svg viewBox="0 0 24 24" fill="currentColor" style="width: 14px; height: 14px;">
-                        <path d="M18.244 2.25h3.308l-7.227 7.69 8.502 11.24H16.17l-5.214-6.817L4.99 21.142H1.68l7.73-8.235L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                    </svg>
+                <div class="note-card-actions">
+                    <button class="card-copy-btn" title="Copy update text to clipboard">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                    </button>
+                    <div class="share-action-indicator">
+                        <svg viewBox="0 0 24 24" fill="currentColor" style="width: 14px; height: 14px;">
+                            <path d="M18.244 2.25h3.308l-7.227 7.69 8.502 11.24H16.17l-5.214-6.817L4.99 21.142H1.68l7.73-8.235L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </div>
                 </div>
             </div>
             <div class="note-card-snippet">${excerpt}</div>
         `;
+        
+        // Card copy button event listener
+        const copyBtn = card.querySelector('.card-copy-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // prevent clicking copy from selecting note
+                navigator.clipboard.writeText(note.text)
+                    .then(() => {
+                        showToast("Copied update to clipboard! 📋", "success");
+                    })
+                    .catch(err => {
+                        showToast("Could not copy update text.", "error");
+                        console.error("Clipboard error:", err);
+                    });
+            });
+        }
         
         card.addEventListener('click', () => {
             selectNote(note);
@@ -641,4 +673,61 @@ function showToast(message, type = 'info') {
             toast.remove();
         });
     }, 3500);
+}
+
+/* ==========================================
+   Export to CSV Data Helper
+   ========================================== */
+
+function exportFilteredNotesToCSV() {
+    if (state.filteredNotes.length === 0) {
+        showToast("No release notes found to export.", "error");
+        return;
+    }
+    
+    // CSV Header Row
+    const headers = ["ID", "Date", "Date_ISO", "Type", "Link", "Summary"];
+    
+    // Format cell value: wrap in quotes, escape existing quotes by doubling them
+    const formatCell = (val) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val);
+        return `"${str.replace(/"/g, '""')}"`;
+    };
+    
+    // Build CSV Rows
+    const csvRows = [];
+    csvRows.push(headers.map(h => `"${h}"`).join(','));
+    
+    state.filteredNotes.forEach(note => {
+        const row = [
+            note.id,
+            note.date,
+            note.date_iso,
+            note.type,
+            note.link,
+            note.text
+        ];
+        csvRows.push(row.map(formatCell).join(','));
+    });
+    
+    const csvContent = "\uFEFF" + csvRows.join('\r\n'); // Add BOM for Excel support
+    
+    try {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `bigquery_release_notes_${state.currentCategory}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showToast(`Exported ${state.filteredNotes.length} notes to CSV! 📊`, "success");
+    } catch (err) {
+        showToast("Failed to export CSV.", "error");
+        console.error("Export to CSV error:", err);
+    }
 }

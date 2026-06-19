@@ -94,12 +94,20 @@
                     <!-- Extra Filters Row -->
                     <div class="filter-meta-row">
                         <div class="feed-stats" id="feed-stats-text">Showing 0 of 0 updates</div>
-                        <div class="sort-control">
-                            <label for="sort-select">Sort:</label>
-                            <select id="sort-select">
-                                <option value="newest" selected>Newest First</option>
-                                <option value="oldest">Oldest First</option>
-                            </select>
+                        <div class="meta-actions">
+                            <button id="export-csv-btn" class="btn-secondary-sm" title="Export currently filtered list to CSV">
+                                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                                <span>Export CSV</span>
+                            </button>
+                            <div class="sort-control">
+                                <label for="sort-select">Sort:</label>
+                                <select id="sort-select">
+                                    <option value="newest" selected>Newest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>

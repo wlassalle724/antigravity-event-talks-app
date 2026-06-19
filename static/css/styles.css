@@ -387,6 +387,12 @@ body {
     font-weight: 500;
 }
 
+.meta-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .sort-control {
     display: flex;
     align-items: center;
@@ -517,6 +523,40 @@ body {
 .update-badge.issue { background-color: var(--bg-issue); color: var(--color-issue); border: 1px solid var(--border-issue); }
 .update-badge.breaking { background-color: var(--bg-breaking); color: var(--color-breaking); border: 1px solid var(--border-breaking); }
 .update-badge.general { background-color: var(--bg-general); color: var(--color-general); border: 1px solid var(--border-general); }
+
+.note-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.card-copy-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: var(--transition-fast);
+    opacity: 0;
+}
+
+.note-card:hover .card-copy-btn {
+    opacity: 1;
+}
+
+.card-copy-btn:hover {
+    color: var(--brand-cyan);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.card-copy-btn svg {
+    width: 14px;
+    height: 14px;
+}
 
 .share-action-indicator {
     opacity: 0;
